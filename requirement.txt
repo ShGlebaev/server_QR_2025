@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+qrcode
+Pillow
+sqlite3
+os
+asyncio
