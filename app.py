@@ -95,6 +95,3 @@ async def remove_qr_code_after_delay(qr_code_path):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
-
-print("пипахуй")
