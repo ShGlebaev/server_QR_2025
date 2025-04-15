@@ -30,4 +30,9 @@ def create_qr_code():
     qr.make(fit=True)
 
     img = qr.make_image(fill_color="black", back_color="white")
-    img.save(f"QRFolder/{sanitized_string}.png")  # Сохранение QR-кода с очищенным именем ключа
+    file_path = f"QRFolder/{sanitized_string}.png"
+    img.save(file_path)  # Сохраняем QR-код
+
+    return file_path  # Возвращаем только путь к файлу
+
+

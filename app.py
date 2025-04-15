@@ -43,9 +43,10 @@ db = Database("users.db")
 @app.get("/show")
 async def show_qr_kod(request: Request):
     try:
-        img, qr_code_path = create_qr_code()
-        if qr_code_path:
+        qr_code_path = create_qr_code()  # Получаем путь к файлу с QR-кодом
+        if qr_code_path and os.path.exists(qr_code_path):
             qr_code_url = f"{request.url.scheme}://{request.url.hostname}:{request.url.port}/QRfolder/{os.path.basename(qr_code_path)}"
+            # Запускаем асинхронное удаление файла через 60 секунд
             asyncio.create_task(remove_qr_code_after_delay(qr_code_path))
             return {"qr_code": qr_code_url}
         else:
