@@ -57,46 +57,38 @@ def scan_and_process_image(filepath):
         return False
 
 async def monitor_folder():
-    """Фоновая задача для мониторинга папки"""
     print(f"Мониторинг папки {IMAGE_FOLDER}...")
-    
     while True:
         files = [
             os.path.join(IMAGE_FOLDER, f) 
             for f in os.listdir(IMAGE_FOLDER) 
             if f.lower().endswith(('.png', '.jpg', '.jpeg'))
         ]
-        
         for filepath in files:
             file_age = time.time() - os.path.getmtime(filepath)
             if file_age > MAX_AGE_NO_QR:
                 scan_and_process_image(filepath)
-        
         await asyncio.sleep(10)
 
 async def delit_image():
-    """Удаляет все фотографии из папки shot_images через 5 минут"""
     while True:
         try:
-            # Ждем 5 минут
-            await asyncio.sleep(300)  # 300 секунд = 5 минут
-            
-            # Получаем список всех файлов в папке
+            await asyncio.sleep(300)
             files = [
                 os.path.join(IMAGE_FOLDER, f) 
                 for f in os.listdir(IMAGE_FOLDER) 
                 if f.lower().endswith(('.png', '.jpg', '.jpeg'))
             ]
-            
-            # Удаляем каждый файл
             for filepath in files:
                 try:
                     os.remove(filepath)
                     print(f"Удален файл: {os.path.basename(filepath)}")
                 except Exception as e:
                     print(f"Ошибка при удалении {filepath}: {e}")
-                    
             print("Очистка папки shot_images завершена")
-            
         except Exception as e:
             print(f"Ошибка в процессе очистки папки: {e}")
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(monitor_folder())
