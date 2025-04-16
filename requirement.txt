@@ -5,3 +5,11 @@ Pillow
 sqlite3
 os
 asyncio
+pyzbar
+logging
+uuid
+datetime
+jose
+pydantic
+socket
+bcrypt
