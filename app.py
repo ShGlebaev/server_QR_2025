@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from pydantic import BaseModel
 
-from generator import create_qr_code_with_key  # Обновлённая функция генерации QR-кода
+from generator import create_qr_code_with_key
 from bd import Database
 
 # --- Настройка логирования ---
