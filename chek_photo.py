@@ -5,12 +5,18 @@ from PIL import Image
 from pyzbar.pyzbar import decode
 from bd import Database
 from door_lock import DoorLock
+import logging
+
+# --- Настройка логирования ---
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 os.makedirs("shot_images", exist_ok=True)
 
 # Настройки
 IMAGE_FOLDER = "shot_images"
 MAX_AGE_NO_QR = 30
+DELETE_INTERVAL = 300  # 5 минут в секундах
 
 def scan_qr_code(image_path):
     """Сканирует QR-код на изображении и возвращает текст"""
@@ -21,7 +27,7 @@ def scan_qr_code(image_path):
             return decoded_objects[0].data.decode("utf-8")
         return None
     except Exception as e:
-        print(f"Ошибка при обработке {image_path}: {e}")
+        logger.error(f"Ошибка при обработке {image_path}: {e}")
         return None
 
 def check_key_in_db(qr_key: str) -> bool:
@@ -29,7 +35,7 @@ def check_key_in_db(qr_key: str) -> bool:
     db = Database('users.db')
     with db._get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users WHERE key = ?", (qr_key,))
+        cursor.execute("SELECT * FROM users WHERE qr_code = ?", (qr_key,))
         return cursor.fetchone() is not None
 
 def scan_and_process_image(filepath):
@@ -37,43 +43,30 @@ def scan_and_process_image(filepath):
     qr_text = scan_qr_code(filepath)
     
     if qr_text:
-        print(f"Найден QR-код в {os.path.basename(filepath)}: {qr_text}")
+        logger.info(f"Найден QR-код в {os.path.basename(filepath)}: {qr_text}")
         
         # Проверяем ключ в базе данных
         if check_key_in_db(qr_text):
-            print("Ключ найден в базе данных. Открываем дверь.")
+            logger.info("Ключ найден в базе данных. Открываем дверь.")
             door_lock = DoorLock()
             door_lock.open_door()
             return True
         else:
-            print("Ключ не найден в базе данных. Доступ запрещен.")
+            logger.warning("Ключ не найден в базе данных. Доступ запрещен.")
             return False
     else:
         try:
             os.remove(filepath)
-            print(f"Удалено (нет QR-кода): {os.path.basename(filepath)}")
+            logger.info(f"Удалено (нет QR-кода): {os.path.basename(filepath)}")
         except Exception as e:
-            print(f"Ошибка удаления {filepath}: {e}")
+            logger.error(f"Ошибка удаления {filepath}: {e}")
         return False
 
-async def monitor_folder():
-    print(f"Мониторинг папки {IMAGE_FOLDER}...")
-    while True:
-        files = [
-            os.path.join(IMAGE_FOLDER, f) 
-            for f in os.listdir(IMAGE_FOLDER) 
-            if f.lower().endswith(('.png', '.jpg', '.jpeg'))
-        ]
-        for filepath in files:
-            file_age = time.time() - os.path.getmtime(filepath)
-            if file_age > MAX_AGE_NO_QR:
-                scan_and_process_image(filepath)
-        await asyncio.sleep(10)
-
 async def delit_image():
+    """Периодически очищает папку с изображениями"""
     while True:
         try:
-            await asyncio.sleep(300)
+            await asyncio.sleep(DELETE_INTERVAL)
             files = [
                 os.path.join(IMAGE_FOLDER, f) 
                 for f in os.listdir(IMAGE_FOLDER) 
@@ -82,13 +75,23 @@ async def delit_image():
             for filepath in files:
                 try:
                     os.remove(filepath)
-                    print(f"Удален файл: {os.path.basename(filepath)}")
+                    logger.info(f"Удален файл: {os.path.basename(filepath)}")
                 except Exception as e:
-                    print(f"Ошибка при удалении {filepath}: {e}")
-            print("Очистка папки shot_images завершена")
+                    logger.error(f"Ошибка при удалении {filepath}: {e}")
+            logger.info("Очистка папки shot_images завершена")
         except Exception as e:
-            print(f"Ошибка в процессе очистки папки: {e}")
+            logger.error(f"Ошибка в процессе очистки папки: {e}")
+
+async def process_image_from_endpoint(file_path: str):
+    """Обрабатывает изображение, полученное через эндпоинт"""
+    try:
+        scan_and_process_image(file_path)
+    except Exception as e:
+        logger.error(f"Ошибка при обработке изображения {file_path}: {e}")
+
+async def start_delete_task():
+    """Запускает задачу очистки папки"""
+    asyncio.create_task(delit_image())
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(monitor_folder())
+    asyncio.run(delit_image())
