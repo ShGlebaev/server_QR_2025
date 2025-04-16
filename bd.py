@@ -24,17 +24,25 @@ class Database:
 
     def register_user(self, login: str, password: str) -> bool:
         try:
-            hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-            self.cursor.execute("INSERT INTO users (login, password, qr_code, life_time) VALUES (?, ?, NULL, NULL)", (login, hashed_password))
-            self.connection.commit()
-            return True
-        except sqlite3.IntegrityError:
+            hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+            self.cursor.execute("SELECT * FROM users WHERE login = ?", (login,))
+            if self.cursor.fetchone() is not None:
+                print(f"Пользователь с логином {login} уже существует")
+                return False
+            else:
+                self.cursor.execute("INSERT INTO users (login, password) VALUES (?, ?)", (login, hashed_password))
+                self.connection.commit()
+                print(f"Пользователь {login} успешно зарегистрирован")
+                return True
+        except Exception as e:
+            print(f"Ошибка при регистрации: {e}")
             return False
 
     def authenticate_user(self, login: str, password: str):
         self.cursor.execute("SELECT password FROM users WHERE login = ?", (login,))
         stored_password = self.cursor.fetchone()
-        if stored_password and bcrypt.checkpw(password.encode('utf-8'), stored_password[0].encode('utf-8')):
+        
+        if stored_password and bcrypt.checkpw(password.encode('utf-8'), stored_password[0]):
             return login
         return None
 
